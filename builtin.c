@@ -11,6 +11,8 @@
 #include "string.h"
 #include "strextra.c"
 
+#define PATH_MAX 4096
+
 const unsigned int INTERNAL_COMMANDS_SIZE = 3u;
 const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit"};
 
@@ -21,11 +23,11 @@ bool builtin_is_internal(scommand cmd) {
     return is_internal;
 }
 
-// TODO José
+// TODO
 bool builtin_alone(pipeline p);
 
-static builtin_cd(scommand cmd) {
-    // TODO Selien, implementar los argumentos -L y -P
+static void builtin_cd(scommand cmd) {
+    // TODO: Implementar los argumentos -L y -P
     scommand_pop_front(cmd);
     if (scommand_is_empty(cmd)) {
         chdir(getenv("HOME"));
@@ -37,6 +39,17 @@ static builtin_cd(scommand cmd) {
     }
 }
 
+static void builtin_pwd() {
+    char cwd_buffer[PATH_MAX];
+    char *working_directory = getcwd(cwd_buffer, PATH_MAX);
+    if (working_directory != NULL) {
+        printf("%s\n", working_directory);
+    } else {
+        printf("%s\n", strerror(errno));
+    }
+    // TODO: Redireccionar la salida al siguiente comando en el pipeline
+}
+
 void builtin_run(scommand cmd) {
     assert(builtin_is_internal(cmd));
     char *command = scommand_front(cmd);
@@ -46,13 +59,18 @@ void builtin_run(scommand cmd) {
     }
 
     /*
-    TODO: José
+    TODO:
+    
     if (strcmp(command, "help")) {
     }
 
     if (strcmp(command, "exit")) {
     }
     */
+
+    if (!strcmp(command, "pwd")) {
+        builtin_pwd(cmd);
+    }
 }
 
 #endif

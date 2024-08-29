@@ -3,6 +3,9 @@
 
 #include <assert.h>
 #include <stdbool.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 #include "command.h"
 #include "string.h"
@@ -18,27 +21,38 @@ bool builtin_is_internal(scommand cmd) {
     return is_internal;
 }
 
+// TODO José
 bool builtin_alone(pipeline p);
-/*
- * Indica si el pipeline tiene solo un elemento y si este se corresponde a un
- * comando interno.
- *
- * REQUIRES: p != NULL
- *
- * ENSURES:
- *
- * builtin_alone(p) == pipeline_length(p) == 1 &&
- *                     builtin_is_internal(pipeline_front(p))
- *
- *
- */
 
-void builtin_run(scommand cmd);
-/*
- * Ejecuta un comando interno
- *
- * REQUIRES: {builtin_is_internal(cmd)}
- *
- */
+static builtin_cd(scommand cmd) {
+    // TODO Selien, implementar los argumentos -L y -P
+    scommand_pop_front(cmd);
+    if (scommand_is_empty(cmd)) {
+        chdir(getenv("HOME"));
+    } else {
+        int error = chdir(scommand_front(cmd));
+        if (error != 0) {
+            printf("%s\n", strerror(errno));
+        }
+    }
+}
+
+void builtin_run(scommand cmd) {
+    assert(builtin_is_internal(cmd));
+    char *command = scommand_front(cmd);
+
+    if (!strcmp(command, "cd")) { //strcmp es 0 cuando s1==s2
+        builtin_cd(cmd);
+    }
+
+    /*
+    TODO: José
+    if (strcmp(command, "help")) {
+    }
+
+    if (strcmp(command, "exit")) {
+    }
+    */
+}
 
 #endif

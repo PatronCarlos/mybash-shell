@@ -111,3 +111,44 @@ char* scommand_to_string(const scommand self) {
   
     return string_output;
 }
+
+struct pipeline_s {
+    GQueue *commands; //Acá se almacenan comandos simples
+    bool wait;
+}
+
+pipeline pipeline_new(void) { 
+    pipeline result = malloc(sizeof(struct pipeline_s));
+    assert (result != NULL);
+    p->commands = g_queue_new();
+    p->wait = true;
+    assert (pipeline_is_empty(result) && pipeline_get_wait(result));
+    return result;
+}
+
+pipeline pipeline_destroy(pipeline self) { 
+    assert (self != NULL);
+    if (!pipeline_is_empty(self)) {
+        g_queue_free_full(self->commands, scommand_destroy);
+    }
+    free(self);
+    assert (self == NULL);
+    return self;
+}
+
+void pipeline_push_back(pipeline self, scommand sc) { 
+    assert (self!=NULL && sc !=NULL);
+    g_queue_push_tail(self->commands, sc);
+    assert (!pipeline_is_empty(self));
+}
+
+void pipeline_pop_front(pipeline self) { 
+    assert (self!=NULL && !pipeline_is_empty(self));
+    scommand cmd = q_queue_pop_head(self->commands);
+    scommand_destroy(cmd);
+}
+
+void pipeline_set_wait(pipeline self, const bool w) {
+    assert(self!=NULL);
+    self->wait=w;
+}

@@ -13,8 +13,8 @@
 
 #define PATH_MAX 4096
 
-const unsigned int INTERNAL_COMMANDS_SIZE = 3u;
-const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit"};
+const unsigned int INTERNAL_COMMANDS_SIZE = 4u;
+const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit", "pwd"};
 
 bool builtin_is_internal(scommand cmd) {
     assert(cmd != NULL);

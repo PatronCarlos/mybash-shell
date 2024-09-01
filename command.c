@@ -1,11 +1,9 @@
-#include "command.h"
-
 #include <assert.h>
 #include <glib-2.0/glib.h>
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include "command.h"
 #include "string.h"
 
 struct scommand_s {
@@ -167,8 +165,7 @@ unsigned int pipeline_length(const pipeline self) {
 
 scommand pipeline_front(const pipeline self) {
     assert((self!=NULL) && !pipeline_is_empty(self));
-    //return g_queue_peek_head(self->commands);
-    return self->commands->head;
+    return g_queue_peek_head(self->commands);
 }
 
 bool pipeline_get_wait(const pipelinne self) {
@@ -183,18 +180,45 @@ char * pipeline_to_string(const pipeline self) {
         return calloc(1, sizeof(char)); //devuelve el puntero a la memoria asignada para el caracter '\0'
     }
 
-    size_t length_s = pipeline_length(self);
+    size_t p_length = pipeline_length(self);
     char** commd_str = calloc(length_s, sizeof(*char));
 
-    unsgned int length_res = 0u;
+    unsigned int length_res = 0u;
     GQueue* scomm = self->commands;
-    for (unsigned int i = 0; i < length_res; ++i) {
+
+    //Itero sobre la linea de comandos, convirtiendo c/scommand en una cadena.
+    for (unsigned int i = 0; i < p_length; ++i) {
         commd_str[i] = scommand_to_string[scomm->head];
         scomm = scomm->head;
-        length_s += strlen(commd_str[i]);
+        length_res += strlen(commd_str[i]); //longitud de la cadena resultante
     }
-    
-    
+
+    // En caso de que se este ejecutando en segundo plano, dejo dos espacios espacio (" &")
+    length_res += (self->wait)*2;
+
+    /*
+     * Como debemos insertar un pipe entre cada scommand, debemos sumar 3 espacios entre cada uno de ellos.
+     * Ademas, se suma 1 espacio que es para el "\0" del final
+     */
+    char* new_length_pipe = calloc(length_res + ((p_length-1)*3 + 1), sizeof(*char));
+    for (unsigned j = 0; j < length_s; ++j) {
+        char* aux_p = new_length_pipe;
+        //Fusiono las cadenas utilizando strmerge()
+        new_length_pipe = strmerge(aux_p, commmd_str[j]);
+        free(aux_p);
+        if (j != p_length-1) {
+            aux_p = new_length_pipe;
+            new_length_pipe = strmerge(aux_p, " | "); //Si no es el último comando agrego el pipe
+            free(aux_p);
+        } else if (!self->wait) {
+            aux_p = new_length_pipe;
+            new_length_pipe = strmerge(aux_p, " &"); //Si la tuberia se esta ejecutando en Background
+            free(aux_p);
+        }
+        free(commd_str[i]);
+    }
+    free(commd_str);
     assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(result)>0);
+    return new_length_pipe; //devuelve la cadena resultante
 }
 

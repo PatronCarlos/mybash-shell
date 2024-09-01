@@ -1,5 +1,4 @@
 #include <assert.h>
-#include <glib-2.0/glib.h>
 #include <glib.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,6 +35,7 @@ scommand scommand_destroy(scommand self) {
     free(self);
     self = NULL;
     assert(self == NULL);
+    return NULL;
 }
 
 void scommand_push_back(scommand self, char* argument) {
@@ -113,23 +113,28 @@ char* scommand_to_string(const scommand self) {
 struct pipeline_s {
     GQueue* commands; //Acá se almacenan comandos simples
     bool wait;
-}
+};
 
 pipeline pipeline_new(void) { 
-    pipeline result = malloc(sizeof(struct pipeline_s));
-    assert (result != NULL);
+    pipeline p = malloc(sizeof(struct pipeline_s));
+    assert (p != NULL);
     p->commands = g_queue_new();
     p->wait = true;
-    assert (pipeline_is_empty(result) && pipeline_get_wait(result));
-    return result;
+    assert (pipeline_is_empty(p) && pipeline_get_wait(p));
+    return p;
+}
+
+static void pipeline_full_free(void *self) {
+    scommand_destroy((scommand)self);
 }
 
 pipeline pipeline_destroy(pipeline self) { 
     assert (self != NULL);
     if (!pipeline_is_empty(self)) {
-        g_queue_free_full(self->commands, scommand_destroy);
+        g_queue_free_full(self->commands, pipeline_full_free);
     }
     free(self);
+    self = NULL;
     assert (self == NULL);
     return self;
 }
@@ -153,12 +158,12 @@ void pipeline_set_wait(pipeline self, const bool w) {
 
 bool pipeline_is_empty(const pipeline self) {
     assert(self!=NULL);
-    return g_queue_is_empty(self->command);
+    return g_queue_is_empty(self->commands);
 }
 
 unsigned int pipeline_length(const pipeline self) {
     assert(self!=NULL);
-    unsigned int length = g_queue_get_length(self->command):
+    unsigned int length = g_queue_get_length(self->commands);
     assert((length == 0) == pipeline_is_empty(self));
     return length;
 }
@@ -168,11 +173,12 @@ scommand pipeline_front(const pipeline self) {
     return g_queue_peek_head(self->commands);
 }
 
-bool pipeline_get_wait(const pipelinne self) {
+bool pipeline_get_wait(const pipeline self) {
     assert(self!=NULL);
     return self->wait;
 }
 
+// TODO: esto falla
 char * pipeline_to_string(const pipeline self) {
     assert(self!=NULL);
 
@@ -181,7 +187,7 @@ char * pipeline_to_string(const pipeline self) {
     }
 
     size_t p_length = pipeline_length(self);
-    char** commd_str = calloc(length_s, sizeof(*char));
+    char** commd_str = calloc(p_length, sizeof(*char));
 
     unsigned int length_res = 0u;
     GQueue* scomm = self->commands;

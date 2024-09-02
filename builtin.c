@@ -16,6 +16,22 @@
 const unsigned int INTERNAL_COMMANDS_SIZE = 4u;
 const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit", "pwd"};
 
+static print_help (void) {
+    printf("MM bash versión 1.0, creada por los estudiantes:\n"
+        "Carlos Patrón \n"
+        "Selien Xavier \n"
+        "Matías Kühn \n"
+        "José María Beretta \n"
+        "Las siguientes órdenes están definidas internamente.  Teclee «help» para\n"
+        "ver esta lista.\n"
+        "cd [dir] -> redirige del directorio actual al directorio en [dir].\n"
+        "pwd -> imprime el nombre del directorio actual.\n"
+        "exit -> cierra el terminal.\n"
+        "fg -> Mueve el proceso al primer plano.\n"
+        "bg -> Mueve el proceso a segundo plano.\n"
+        );
+}
+
 bool builtin_is_internal(scommand cmd) {
     assert(cmd != NULL);
     bool is_internal = is_string_in_array(scommand_front(cmd), INTERNAL_COMMANDS,
@@ -66,19 +82,7 @@ void builtin_run(scommand cmd) {
         builtin_cd(cmd);
     }
     if (strcmp(command, "help")) {
-        printf("MM bash versión 1.0, creada por los estudiantes:\n"
-        "Carlos Patrón \n"
-        "Selien Xavier \n"
-        "Matías Kühn \n"
-        "José María Beretta \n"
-        "Las siguientes órdenes están definidas internamente.  Teclee «help» para\n"
-        "ver esta lista.\n"
-        "cd [dir] -> redirige del directorio actual al directorio en [dir].\n"
-        "pwd -> imprime el nombre del directorio actual.\n"
-        "exit -> cierra el terminal.\n"
-        "fg -> Mueve el proceso al primer plano.\n"
-        "bg -> Mueve el proceso a segundo plano.\n"
-        );
+        print_help();
     }
     if (strcmp(command, "exit")) {
         EXIT_SUCCESS; //To Do: Una vez creada bg, modificar esta función.

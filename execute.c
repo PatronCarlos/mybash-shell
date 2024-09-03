@@ -8,7 +8,7 @@
 
 
 struct scommand_s {
-    GsList *list;
+    GsList *lcoms; //lista de comandos simples
     char *redir_in;
     char *redir_out;
 }
@@ -27,11 +27,26 @@ scommand scommand_new(void) {
 
 scommand scomand_destroy(scomannd self) {
     assert (self != NULL);
-    g_s
+    g_slist_free_full(self->lcoms, g_free);
+    free(self->outputf);
+    free(self->inputf);
+    free(self);
+    self = NULL;
+    assert (self != NULL);
+
+    return self;
 }
 
 void scommand_push_back(scommand self, char * argument) {
-
+    assert(self != NULL && argument != NULL);
+    if (self->list == NULL){ //caso donde la lista es vacia
+        self->list = g_queue_new();
+        g_queue_push_tail(self->list,argument);
+    }
+    else{
+        g_queue_push_tail(self->list,argument);
+    }
+    assert(!scommand_is_empty(self));
 }
 
 void scommand_pop_front(scommand self) {

@@ -92,10 +92,22 @@ char* scommand_to_string(const scommand self) {
     char* string_output = NULL;
     unsigned int scommand_quantity = scommand_length(self);
   
+    // Cuento la cantidad de caracteres que ocupan los comandos
     size_t total_length = 0;
     for (unsigned int i = 0; i < scommand_quantity; i++) {
       total_length += strlen((char*)g_queue_peek_nth(self->queue, i)) + 1;
     }
+
+    // Agrego el espacio para los < y > que correspondan
+    if (scommand_get_redir_in(self) != NULL) {
+        total_length += strlen(scommand_get_redir_in(self)) + 3; // 3 para ' < ' 
+    }
+
+    if (scommand_get_redir_out(self) != NULL) {
+        total_length += strlen(scommand_get_redir_out(self)) + 3; // 3 para ' > ' 
+    }
+
+    // Concateno en orden todos los comandos y redirecciones de entrada/salida
     string_output = malloc(sizeof(char) * total_length);
     assert(string_output != NULL);
     string_output[0] = '\0';
@@ -106,7 +118,17 @@ char* scommand_to_string(const scommand self) {
         string_output = strcat(string_output, " ");
       }
     }
-  
+
+    if (scommand_get_redir_in(self) != NULL) {
+        string_output = strcat(string_output, " < "); 
+        string_output = strcat(string_output, scommand_get_redir_in(self)); 
+    }
+
+    if (scommand_get_redir_out(self) != NULL) {
+        string_output = strcat(string_output, " > "); 
+        string_output = strcat(string_output, scommand_get_redir_out(self)); 
+    }
+
     return string_output;
 }
 

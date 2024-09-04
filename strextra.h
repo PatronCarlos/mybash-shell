@@ -2,6 +2,7 @@
 #define _STREXTRA_H_
 
 #include <stdbool.h>
+#include <stddef.h>
 
 char *strmerge(char *s1, char *s2);
 /*
@@ -20,7 +21,7 @@ char *strmerge(char *s1, char *s2);
  *
  */
 
-static bool is_string_in_array(const char *str, const char *array[],
+bool is_string_in_array(const char *str, const char *array[],
                                size_t arr_size);
 /*
  * Verifica si la cadena str está presente en el arreglo de cadenas array

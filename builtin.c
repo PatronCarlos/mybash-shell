@@ -19,7 +19,7 @@ const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit", "
 static print_help (void) {
     printf("MM bash versión 1.0, creada por los estudiantes:\n"
         "Carlos Patrón \n"
-        "Selien Xavier \n"
+        "Selien Xavier Yorbandi\n"
         "Matías Kühn \n"
         "José María Beretta \n"
         "Las siguientes órdenes están definidas internamente.  Teclee «help» para\n"
@@ -70,7 +70,6 @@ static void builtin_pwd() {
     } else {
         printf("%s\n", strerror(errno));
     }
-    // TODO: Redireccionar la salida al siguiente comando en el pipeline
 }
 
 
@@ -81,10 +80,10 @@ void builtin_run(scommand cmd) {
     if (!strcmp(command, "cd")) { //strcmp es 0 cuando s1==s2
         builtin_cd(cmd);
     }
-    if (strcmp(command, "help")) {
+    if (!strcmp(command, "help")) {
         print_help();
     }
-    if (strcmp(command, "exit")) {
+    if (!strcmp(command, "exit")) {
         EXIT_SUCCESS; //To Do: Una vez creada bg, modificar esta función.
     }
     if (!strcmp(command, "pwd")) {

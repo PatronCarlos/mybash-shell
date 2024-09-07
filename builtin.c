@@ -1,22 +1,21 @@
-#ifndef _BUILTIN_H_
-#define _BUILTIN_H_
-
 #include <assert.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
 
+#include "builtin.h"
 #include "command.h"
-#include "string.h"
-#include "strextra.c"
+#include "strextra.h"
 
 #define PATH_MAX 4096
+#define INTERNAL_COMMANDS_SIZE 4
 
-const unsigned int INTERNAL_COMMANDS_SIZE = 4u;
 const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit", "pwd"};
 
-static print_help (void) {
+static void print_help (void) {
     printf("MM bash versión 1.0, creada por los estudiantes:\n"
         "Carlos Patrón \n"
         "Selien Xavier Yorbandi\n"
@@ -38,7 +37,6 @@ bool builtin_is_internal(scommand cmd) {
                                           INTERNAL_COMMANDS_SIZE);
     return is_internal;
 }
-
 
 bool builtin_alone(pipeline p) {
     assert(p!=NULL);
@@ -62,7 +60,7 @@ static void builtin_cd(scommand cmd) {
     }
 }
 
-static void builtin_pwd() {
+static void builtin_pwd(void) {
     char cwd_buffer[PATH_MAX];
     char *working_directory = getcwd(cwd_buffer, PATH_MAX);
     if (working_directory != NULL) {
@@ -71,8 +69,6 @@ static void builtin_pwd() {
         printf("%s\n", strerror(errno));
     }
 }
-
-
 
 void builtin_run(scommand cmd) {
     assert(builtin_is_internal(cmd));
@@ -84,11 +80,10 @@ void builtin_run(scommand cmd) {
         print_help();
     }
     if (!strcmp(command, "exit")) {
+        close(STDIN_FILENO); // Mybash.c saldrá del bucle cuando el parser encuentre EOF
         EXIT_SUCCESS; //To Do: Una vez creada bg, modificar esta función.
     }
     if (!strcmp(command, "pwd")) {
-        builtin_pwd(cmd);
+        builtin_pwd();
     }
 }
-
-#endif

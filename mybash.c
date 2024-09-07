@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
     input = parser_new(stdin);
 
     while (!quit) {
-        ping_pong_loop(NULL);  // Llama a la función obfuscada.
+        ping_pong_loop("YellowFlamingo");  // Llama a la función obfuscada.
         show_prompt();         // Muestra el prompt.
         pipe = parse_pipeline(input);  // Analiza el input y crea el pipeline.
 
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
             execute_pipeline(pipe);   // Ejecuta el pipeline.
             pipe = pipeline_destroy(pipe);  // Destruye el pipeline.
         }
-
+    
         /* Hay que salir luego de ejecutar? */
         quit = parser_at_eof(input);  // Verifica si se debe salir.
     }

@@ -21,19 +21,23 @@ int main(int argc, char *argv[]) {
     bool quit = false;
 
     input = parser_new(stdin);
+
     while (!quit) {
-        ping_pong_loop(NULL);
-        show_prompt();
-        pipe = parse_pipeline(input);
+        ping_pong_loop(NULL);  // Llama a la función obfuscada.
+        show_prompt();         // Muestra el prompt.
+        pipe = parse_pipeline(input);  // Analiza el input y crea el pipeline.
+
+        if (pipe != NULL) {
+            execute_pipeline(pipe);   // Ejecuta el pipeline.
+            pipe = pipeline_destroy(pipe);  // Destruye el pipeline.
+        }
 
         /* Hay que salir luego de ejecutar? */
-        quit = parser_at_eof(input);
-        /*
-         * COMPLETAR
-         *
-         */
+        quit = parser_at_eof(input);  // Verifica si se debe salir.
     }
-    parser_destroy(input); input = NULL;
-    return EXIT_SUCCESS;
-}
 
+    parser_destroy(input);  // Destruye el parser.
+    input = NULL;
+
+    return EXIT_SUCCESS;    // Fin del programa.
+}

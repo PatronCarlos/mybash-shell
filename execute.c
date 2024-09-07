@@ -11,114 +11,122 @@
 #include "strextra.h"
 
 char **parse_cmd_to_exec(scommand cmd) {
-    char *cmdstr = scommand_to_string(cmd);
-    unsigned int cmd_length = strlen(cmdstr);
-    free(cmdstr);
-
     char **argv = NULL;
-    argv = calloc(cmd_length + 2, sizeof(char));
+    unsigned int cmd_length = scommand_length(cmd);
+    
+    argv = calloc(cmd_length + 1, sizeof(char *));
     if (argv == NULL) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
-    for (unsigned int i=0u; i < cmd_length; i++ ) {
+    for (unsigned int i = 0u; i < cmd_length; i++) {
         argv[i] = scommand_front(cmd);
         scommand_pop_front(cmd);
     }
-    argv[cmd_length] = NULL;
+    argv[cmd_length] = NULL;  // Terminate the argv list with NULL
     return argv;
 }
 
-
-/*
-  ¡Ver el tema de las redirección!
-  implementarlo aca-------|
-                          |
-                          |
-                          v
 static void execute_cmd(scommand cmd) {
+    char **parsed_cmd = parse_cmd_to_exec(cmd);
 
+    // Redirecciones si existen
+    char *redir_in = scommand_get_redir_in(cmd);
+    char *redir_out = scommand_get_redir_out(cmd);
+
+    if (redir_in != NULL) {
+        freopen(redir_in, "r", stdin);
+    }
+    if (redir_out != NULL) {
+        freopen(redir_out, "w", stdout);
+    }
+
+    // Ejecutar el comando
+    if (execvp(parsed_cmd[0], parsed_cmd) == -1) {
+        fprintf(stderr, "ERROR: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    free(parsed_cmd);
 }
-*/
 
 void execute_pipeline(pipeline apipe) {
     assert(apipe != NULL);
 
-    //Caso en el que apipe es NULL
     if (pipeline_is_empty(apipe)) {
-        exit(1);
+        return;
     }
 
-    //El pipeline tiene un solo comando simple
-    scommand cmd = NULL;
-    if (builtin_alone(apipe)) {
-        cmd = pipeline_front(apipe);
-        if (builtin_is_internal(cmd)) {}
-            builtin_run(cmd);
-        }
-        exit(1);
+    unsigned int app_length = pipeline_length(apipe);
+    pid_t *pid_childs = malloc(app_length * sizeof(pid_t));
+    if (pid_childs == NULL) {
+        perror("malloc");
+        exit(EXIT_FAILURE);
     }
-    /*
-     * Evito la creación de procesos zombies ignorando la señal que le envia el proceso hijo al padre cuando este termina.
-     * Esto lo hago en caso de que el pipeline no deba esperar.
-     */
-     if (!pipeline_get_wait(apipe)) {
-         signal(SIGCHLD, SIG_IGN);
-     }
 
-    //El pipeline tiene mas de un comando simple -> (conección de una o mas tuberias)
-    app_length = pipeline_length(apipe);
-    pid_t pid_childs = malloc(app_length * sizeof(pid_t)); //Reservo memoria para los PID's de los hijos del proceso
-
-    int pipefd[2];
-    int ptpm[2];
+    int pipefd[2];  // Pipe for communication between processes
+    int prev_pipefd[2];  // Previous pipe
 
     for (unsigned int i = 0u; i < app_length; i++) {
+        scommand cmd = pipeline_front(apipe);
+        pipeline_pop_front(apipe);
 
-        //Creo el canal de datos unidireccional para comunicar los procesos del pipeline
-        if (i != 0) {
-            // hay mas de un comando simple en el pipeline
-            pipefd[0] = ptmp[0]; //Extremo de lectura del pipe
-            pipefd[1] = ptmp[1]; //Extremo de escritura del pipe
-        }
-        //Ahora, mientra no me encuentr en el extremo del pipeline, conceto la tuberia entre los comandos simples
         if (i != app_length - 1) {
-            int res = pipe(pipefd);
-        }
-        if (res == -1) {
-           exit(EXIT_FAILURE);
-        }
-        pid_t rc = fork();
-
-        if (rc < 0) {
-            //El fork() falló
-            fprintf(stderrm "ERROR: fork failed!\n");
-            exit(1);
-        } else if (rc == 0) {
-            //Proceso hijo
-            /*
-             *COMPLETAR
-             */
-            char ** parse_cmd = parse_cmd_to_exec(cmd);
-            int execute = execvp(parse_cmd[0], parsed_cmd);
-            if (execute == -1) {
-                fprintf(stderr, "ERROR: %s\n", strerror(errno));
+            // Crear la pipe para todos los procesos excepto el último
+            if (pipe(pipefd) == -1) {
+                perror("pipe");
                 exit(EXIT_FAILURE);
             }
-        } else {
-            /*
-             *COMPLETAR
-            */
         }
-        /*En caso de que el pipeline tenga que esperar,
-         * se suspende la ejecución del proceso invocador hasta que un hijo,
-         * el cual se especifica con pid_child[i], haya cambiado de estado.
-         */
-        if (pipeline_get_wait(apipe)) {
-            for (unsigned int i=0; i < app_length; i++) {
-                waitpid(pid_child[i], NULL, 0);
+
+        pid_t rc = fork();
+        if (rc < 0) {
+            // Falló el fork()
+            fprintf(stderr, "ERROR: fork failed!\n");
+            exit(EXIT_FAILURE);
+        } else if (rc == 0) {
+            // Proceso hijo
+
+            // Redirección de entrada y salida entre pipes
+            if (i > 0) {
+                dup2(prev_pipefd[0], STDIN_FILENO);  // Leer de la pipe previa
+                close(prev_pipefd[0]);
+                close(prev_pipefd[1]);
             }
+
+            if (i != app_length - 1) {
+                dup2(pipefd[1], STDOUT_FILENO);  // Escribir en la pipe actual
+                close(pipefd[0]);
+                close(pipefd[1]);
+            }
+
+            // Ejecutar el comando
+            execute_cmd(cmd);
+            exit(EXIT_SUCCESS);
+        } else {
+            // Proceso padre
+
+            if (i > 0) {
+                close(prev_pipefd[0]);
+                close(prev_pipefd[1]);
+            }
+
+            if (i != app_length - 1) {
+                prev_pipefd[0] = pipefd[0];
+                prev_pipefd[1] = pipefd[1];
+            }
+
+            pid_childs[i] = rc;
         }
     }
+
+    // El padre debe esperar a todos los hijos si es necesario
+    if (pipeline_get_wait(apipe)) {
+        for (unsigned int i = 0u; i < app_length; i++) {
+            waitpid(pid_childs[i], NULL, 0);
+        }
+    }
+
     free(pid_childs);
 }
+

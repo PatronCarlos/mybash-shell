@@ -1,127 +1,124 @@
 #include <assert.h>
-#include "command.h"
+#include <errno.h>
 #include <glib.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include "builtin.h"
+#include "command.h"
 #include "strextra.h"
-#include <string.h>
 
+char **parse_cmd_to_exec(scommand cmd) {
+    char *cmdstr = scommand_to_string(cmd);
+    unsigned int cmd_length = strlen(cmdstr);
+    free(cmdstr);
 
-struct scommand_s {
-    GsList *lcoms; //lista de comandos simples
-    char *redir_in;
-    char *redir_out;
-}
-
-
-
-scommand scommand_new(void) {
-    scommand newcomm = malloc(sizeof(struct scommand_s));
-    assert (newcomm != NULL);
-    newcomm -> list = NULL;
-    newcomm -> in = NULL;
-    newcomm -> out = NULL;
-    assert (newcomm != NULL && scommand_is_empty(newcomm) && scomand_get_redirIn(newcomm) == NULL && scommand_get_redirOut(newcomm) == NULL);
-    return newcomm;
-}
-
-scommand scomand_destroy(scomannd self) {
-    assert (self != NULL);
-    g_slist_free_full(self->lcoms, g_free);
-    free(self->outputf);
-    free(self->inputf);
-    free(self);
-    self = NULL;
-    assert (self != NULL);
-
-    return self;
-}
-
-void scommand_push_back(scommand self, char * argument) {
-    assert(self != NULL && argument != NULL);
-    if (self->list == NULL){ //caso donde la lista es vacia
-        self->list = g_queue_new();
-        g_queue_push_tail(self->list,argument);
+    char **argv = NULL;
+    argv = calloc(cmd_length + 2, sizeof(char));
+    if (argv == NULL) {
+        exit(1);
     }
-    else{
-        g_queue_push_tail(self->list,argument);
+
+    for (unsigned int i=0u; i < cmd_length; i++ ) {
+        argv[i] = scommand_front(cmd);
+        scommand_pop_front(cmd);
     }
-    assert(!scommand_is_empty(self));
+    argv[cmd_length] = NULL;
+    return argv;
 }
 
-void scommand_pop_front(scommand self) {
+
+/*
+  ¡Ver el tema de las redirección!
+  implementarlo aca-------|
+                          |
+                          |
+                          v
+static void execute_cmd(scommand cmd) {
 
 }
+*/
 
-void scommand_set_redir_in(scommand self, char * filename){
+void execute_pipeline(pipeline apipe) {
+    assert(apipe != NULL);
 
-}
-void scommand_set_redir_out(scommand self, char * filename){
+    //Caso en el que apipe es NULL
+    if (pipeline_is_empty(apipe)) {
+        exit(1);
+    }
 
-}
+    //El pipeline tiene un solo comando simple
+    scommand cmd = NULL;
+    if (builtin_alone(apipe)) {
+        cmd = pipeline_front(apipe);
+        if (builtin_is_internal(cmd)) {}
+            builtin_run(cmd);
+        }
+        exit(1);
+    }
+    /*
+     * Evito la creación de procesos zombies ignorando la señal que le envia el proceso hijo al padre cuando este termina.
+     * Esto lo hago en caso de que el pipeline no deba esperar.
+     */
+     if (!pipeline_get_wait(apipe)) {
+         signal(SIGCHLD, SIG_IGN);
+     }
 
-bool scommand_is_empty(const scommand self) {
-    assert(self != NULL);
-    return (self -> comms_array == NULL);
-}
+    //El pipeline tiene mas de un comando simple -> (conección de una o mas tuberias)
+    app_length = pipeline_length(apipe);
+    pid_t pid_childs = malloc(app_length * sizeof(pid_t)); //Reservo memoria para los PID's de los hijos del proceso
 
-unsigned int scommand_length(const scommand self) {
+    int pipefd[2];
+    int ptpm[2];
 
-}
+    for (unsigned int i = 0u; i < app_length; i++) {
 
-char * scommand_front(const scommand self) {
+        //Creo el canal de datos unidireccional para comunicar los procesos del pipeline
+        if (i != 0) {
+            // hay mas de un comando simple en el pipeline
+            pipefd[0] = ptmp[0]; //Extremo de lectura del pipe
+            pipefd[1] = ptmp[1]; //Extremo de escritura del pipe
+        }
+        //Ahora, mientra no me encuentr en el extremo del pipeline, conceto la tuberia entre los comandos simples
+        if (i != app_length - 1) {
+            int res = pipe(pipefd);
+        }
+        if (res == -1) {
+           exit(EXIT_FAILURE);
+        }
+        pid_t rc = fork();
 
-}
-
-char * scommand_get_redir_in(const scommand self){
-
-}
-
-char * scommand_get_redir_out(const scommand self) {
-
-}
-
-char * scommand_to_string(const scommand self) {
-
-}
-
-typedef struct pipeline_s * pipeline;
-
-pipeline pipeline_new(void){
-
-}
-
-pipeline pipeline_destroy(pipeline self) {
-
-}
-void pipeline_push_back(pipeline self, scommand sc) {
-
-}
-
-void pipeline_pop_front(pipeline self) {
-
-}
-
-void pipeline_set_wait(pipeline self, const bool w) {
-
-}
-
-bool pipeline_is_empty(const pipeline self) {
-
-}
-
-unsigned int pipeline_length(const pipeline self) {
-
-}
-
-scommand pipeline_front(const pipeline self) {
-
-}
-
-bool pipeline_get_wait(const pipeline self){
-
-}
-
-char * pipeline_to_string(const pipeline self) {
-
+        if (rc < 0) {
+            //El fork() falló
+            fprintf(stderrm "ERROR: fork failed!\n");
+            exit(1);
+        } else if (rc == 0) {
+            //Proceso hijo
+            /*
+             *COMPLETAR
+             */
+            char ** parse_cmd = parse_cmd_to_exec(cmd);
+            int execute = execvp(parse_cmd[0], parsed_cmd);
+            if (execute == -1) {
+                fprintf(stderr, "ERROR: %s\n", strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+        } else {
+            /*
+             *COMPLETAR
+            */
+        }
+        /*En caso de que el pipeline tenga que esperar,
+         * se suspende la ejecución del proceso invocador hasta que un hijo,
+         * el cual se especifica con pid_child[i], haya cambiado de estado.
+         */
+        if (pipeline_get_wait(apipe)) {
+            for (unsigned int i=0; i < app_length; i++) {
+                waitpid(pid_child[i], NULL, 0);
+            }
+        }
+    }
+    free(pid_childs);
 }

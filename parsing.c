@@ -63,7 +63,7 @@ pipeline parse_pipeline(Parser p) {
         if (has_op_background) {
             pipeline_set_wait(pipe, false); //Si hay operador de background, no espera.
         } else {
-            pipeline_set_wait(pipe, true); //Caso contrario, se espera.
+            pipeline_set_wait(pipe, true); 
         }
         parser_skip_blanks(p);
         

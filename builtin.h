@@ -37,5 +37,24 @@ void builtin_run(scommand cmd);
  *
  */
 
+void builtin_pwd(bool breakline);
+/*
+ * Muestra el directorio de trabajo actual.
+ *
+ */
+
+void builtin_cd(scommand cmd);
+/*
+ * Cambia el directorio actual al especificado en el comando interno `cmd`.
+ *
+ * REQUIRES: {builtin_is_internal(cmd)}
+ *
+ */
+
+void print_help(void);
+/*
+ * Imprime una lista con la información de ayuda para los comandos internos.
+ *
+ */
 #endif
 

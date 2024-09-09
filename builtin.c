@@ -15,7 +15,7 @@
 
 const char *INTERNAL_COMMANDS[INTERNAL_COMMANDS_SIZE] = {"cd", "help", "exit", "pwd"};
 
-static void print_help (void) {
+void print_help (void) {
     printf("MM bash versión 1.0, creada por los estudiantes:\n"
         "Carlos Patrón \n"
         "Selien Xavier Yorbandi\n"
@@ -47,8 +47,7 @@ bool builtin_alone(pipeline p) {
     return one_internal_cmd;
 }
 
-static void builtin_cd(scommand cmd) {
-
+void builtin_cd(scommand cmd) {
     scommand_pop_front(cmd);
     if (scommand_is_empty(cmd)) {
         chdir(getenv("HOME"));
@@ -60,11 +59,11 @@ static void builtin_cd(scommand cmd) {
     }
 }
 
-static void builtin_pwd(void) {
+void builtin_pwd(bool breakline) {
     char cwd_buffer[PATH_MAX];
     char *working_directory = getcwd(cwd_buffer, PATH_MAX);
     if (working_directory != NULL) {
-        printf("%s\n", working_directory);
+        printf("%s%s", working_directory, breakline ? "\n" : "");
     } else {
         printf("%s\n", strerror(errno));
     }
@@ -84,6 +83,6 @@ void builtin_run(scommand cmd) {
         EXIT_SUCCESS; //To Do: Una vez creada bg, modificar esta función.
     }
     if (!strcmp(command, "pwd")) {
-        builtin_pwd();
+        builtin_pwd(true);
     }
 }

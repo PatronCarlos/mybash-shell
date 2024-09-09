@@ -19,3 +19,8 @@
 *.app
 .vscode
 .depend
+tests/*
+*.txt
+*.in
+*.out
+mybash

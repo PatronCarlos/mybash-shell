@@ -19,6 +19,7 @@
 *.app
 .vscode
 .depend
+/tests
 tests/*
 *.txt
 *.in

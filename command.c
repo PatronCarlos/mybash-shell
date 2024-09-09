@@ -92,10 +92,22 @@ char* scommand_to_string(const scommand self) {
     char* string_output = NULL;
     unsigned int scommand_quantity = scommand_length(self);
   
+    // Cuento la cantidad de caracteres que ocupan los comandos
     size_t total_length = 0;
     for (unsigned int i = 0; i < scommand_quantity; i++) {
       total_length += strlen((char*)g_queue_peek_nth(self->queue, i)) + 1;
     }
+
+    // Agrego el espacio para los < y > que correspondan
+    if (scommand_get_redir_in(self) != NULL) {
+        total_length += strlen(scommand_get_redir_in(self)) + 3; // 3 para ' < ' 
+    }
+
+    if (scommand_get_redir_out(self) != NULL) {
+        total_length += strlen(scommand_get_redir_out(self)) + 3; // 3 para ' > ' 
+    }
+
+    // Concateno en orden todos los comandos y redirecciones de entrada/salida
     string_output = malloc(sizeof(char) * total_length);
     assert(string_output != NULL);
     string_output[0] = '\0';
@@ -106,7 +118,17 @@ char* scommand_to_string(const scommand self) {
         string_output = strcat(string_output, " ");
       }
     }
-  
+
+    if (scommand_get_redir_in(self) != NULL) {
+        string_output = strcat(string_output, " < "); 
+        string_output = strcat(string_output, scommand_get_redir_in(self)); 
+    }
+
+    if (scommand_get_redir_out(self) != NULL) {
+        string_output = strcat(string_output, " > "); 
+        string_output = strcat(string_output, scommand_get_redir_out(self)); 
+    }
+
     return string_output;
 }
 
@@ -178,53 +200,42 @@ bool pipeline_get_wait(const pipeline self) {
     return self->wait;
 }
 
-// TODO: esto falla
 char * pipeline_to_string(const pipeline self) {
     assert(self!=NULL);
-
-    if (pipeline_is_empty(self)==0) {
-        return calloc(1, sizeof(char)); //devuelve el puntero a la memoria asignada para el caracter '\0'
+    if (pipeline_is_empty(self)) {
+        return calloc(1, sizeof(char)); // puntero a memoria asignada para el caracter '\0', sino printf imprimiría (null)
     }
-
-    size_t p_length = pipeline_length(self);
-    char** commd_str = calloc(p_length, sizeof(*char));
-
-    unsigned int length_res = 0u;
-    GQueue* scomm = self->commands;
-
-    //Itero sobre la linea de comandos, convirtiendo c/scommand en una cadena.
-    for (unsigned int i = 0; i < p_length; ++i) {
-        commd_str[i] = scommand_to_string[scomm->head];
-        scomm = scomm->head;
-        length_res += strlen(commd_str[i]); //longitud de la cadena resultante
+     
+    // p_length para el '\0' de cada scommand,
+    //  (p_length - 1) * 3 para los (n = scommand - 1) ' | ' que incluye el pipeline,
+    //  1 para el '\0' final.
+    size_t p_length = pipeline_length(self); // cantidad de scommands en pipeline
+    unsigned int length_res = p_length + (p_length - 1) * 3 + 1;
+    for (unsigned int i = 0; i < p_length; i++) { // La sumatoria de #caracteres de c/scommand
+        char *temp_scommand_str = scommand_to_string((scommand)g_queue_peek_nth(self->commands, i));
+        length_res += strlen(temp_scommand_str);
+        free(temp_scommand_str);  // Libera la memoria  que creo con scommand_to_string en c/iteración
     }
-
-    // En caso de que se este ejecutando en segundo plano, dejo dos espacios espacio (" &")
-    length_res += (self->wait)*2;
-
-    /*
-     * Como debemos insertar un pipe entre cada scommand, debemos sumar 3 espacios entre cada uno de ellos.
-     * Ademas, se suma 1 espacio que es para el "\0" del final
-     */
-    char* new_length_pipe = calloc(length_res + ((p_length-1)*3 + 1), sizeof(*char));
-    for (unsigned j = 0; j < length_s; ++j) {
-        char* aux_p = new_length_pipe;
-        //Fusiono las cadenas utilizando strmerge()
-        new_length_pipe = strmerge(aux_p, commmd_str[j]);
-        free(aux_p);
-        if (j != p_length-1) {
-            aux_p = new_length_pipe;
-            new_length_pipe = strmerge(aux_p, " | "); //Si no es el último comando agrego el pipe
-            free(aux_p);
-        } else if (!self->wait) {
-            aux_p = new_length_pipe;
-            new_length_pipe = strmerge(aux_p, " &"); //Si la tuberia se esta ejecutando en Background
-            free(aux_p);
+    char *pipeline_string = calloc(length_res, sizeof(char));
+    assert(pipeline_string != NULL);
+    
+    // Itero sobre el pipeline, convirtiendo c/scommand en una cadena.
+    for (unsigned int i = 0; i < p_length; i++) {
+        char *temp_scommand_str = scommand_to_string((scommand)g_queue_peek_nth(self->commands, i));
+        pipeline_string = strcat(pipeline_string, temp_scommand_str);
+        free(temp_scommand_str );  // Libera la memoria  que creo con scommand_to_string en c/iteración
+        if (i < p_length - 1) {
+            pipeline_string = strcat(pipeline_string, " | ");
         }
-        free(commd_str[i]);
     }
-    free(commd_str);
-    assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(result)>0);
-    return new_length_pipe; //devuelve la cadena resultante
-}
 
+    // En caso de que se este ejecutando en segundo plano, agrego (" &")
+    if(!pipeline_get_wait(self)) {
+        length_res += 3;
+        pipeline_string = realloc(pipeline_string, length_res * (sizeof(char)));
+        assert(pipeline_string != NULL);
+        pipeline_string = strcat(pipeline_string, " &");
+    }
+    assert(pipeline_is_empty(self) || pipeline_get_wait(self) || strlen(pipeline_string) > 0);
+    return pipeline_string;
+}

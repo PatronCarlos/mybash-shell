@@ -9,6 +9,7 @@
 #include "builtin.h"
 #include "command.h"
 #include "strextra.h"
+#include "execute.h"
 
 char **parse_cmd_to_exec(scommand cmd) {
     char **argv = NULL;
@@ -129,4 +130,3 @@ void execute_pipeline(pipeline apipe) {
 
     free(pid_childs);
 }
-

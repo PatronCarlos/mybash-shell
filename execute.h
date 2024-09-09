@@ -7,7 +7,10 @@
 
 #include "command.h"
 
+// Declara el prototipo de la función parse_cmd_to_exec
+char **parse_cmd_to_exec(scommand cmd);
 
+// Declara el prototipo de la función execute_pipeline
 void execute_pipeline(pipeline apipe);
 /*
  * Ejecuta un pipeline, identificando comandos internos, forkeando, y

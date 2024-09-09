@@ -20,3 +20,8 @@
 .vscode
 .depend
 /tests
+tests/*
+*.txt
+*.in
+*.out
+mybash

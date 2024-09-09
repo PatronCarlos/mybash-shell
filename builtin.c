@@ -55,6 +55,7 @@ void builtin_cd(scommand cmd) {
         int error = chdir(scommand_front(cmd));
         if (error != 0) {
             printf("%s\n", strerror(errno));
+            exit(0);
         }
     }
 }
@@ -74,15 +75,12 @@ void builtin_run(scommand cmd) {
     char *command = scommand_front(cmd);
     if (!strcmp(command, "cd")) { //strcmp es 0 cuando s1==s2
         builtin_cd(cmd);
-    }
-    if (!strcmp(command, "help")) {
+    } else if (!strcmp(command, "help")) {
         print_help();
-    }
-    if (!strcmp(command, "exit")) {
+    } else if (!strcmp(command, "exit")) {
         close(STDIN_FILENO); // Mybash.c saldrá del bucle cuando el parser encuentre EOF
-        EXIT_SUCCESS; //To Do: Una vez creada bg, modificar esta función.
-    }
-    if (!strcmp(command, "pwd")) {
+        exit(EXIT_SUCCESS); //To Do: Una vez creada bg, modificar esta función.
+    } else if (!strcmp(command, "pwd")) {
         builtin_pwd(true);
     }
 }

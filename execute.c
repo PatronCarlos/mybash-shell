@@ -1,124 +1,168 @@
-#include <assert.h>
-#include <errno.h>
-#include <glib.h>
-#include <signal.h>
 #include <stdio.h>
-#include <stdlib.h>
+#include <assert.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include "builtin.h"
+#include <fcntl.h>
+#include <glib.h>
+#include <signal.h>
+#include <sys/stat.h>
+#include <errno.h>
+
 #include "command.h"
-#include "strextra.h"
+#include "tests/syscall_mock.h"
+#include "execute.h"
+#include "builtin.h"
 
-char **parse_cmd_to_exec(scommand cmd) {
-    char *cmdstr = scommand_to_string(cmd);
-    unsigned int cmd_length = strlen(cmdstr);
-    free(cmdstr);
+static void handle_input_redirection(scommand cmd) {
+    char* filename_in = scommand_get_redir_in(cmd);
+    if (filename_in) {
+        int in_redir = open(filename_in, O_RDONLY, S_IRWXU);
+        if (in_redir == -1) {
+            fprintf(stderr, "%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        close(STDIN_FILENO);
+        dup(in_redir);
+        close(in_redir);
+    }
+}
 
-    char **argv = NULL;
-    argv = calloc(cmd_length + 2, sizeof(char));
+static void handle_output_redirection(scommand cmd) {
+    char* filename_out = scommand_get_redir_out(cmd);
+    if (filename_out) {
+        int out_redir = open(filename_out, O_CREAT | O_WRONLY | O_TRUNC, S_IRWXU);
+        if (out_redir == -1) {
+            fprintf(stderr, "%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        close(STDOUT_FILENO);
+        dup(out_redir);
+        close(out_redir);
+    }
+}
+
+static char** parse_cmd_to_exec(scommand cmd, unsigned int cmd_length) {
+    char** argv = calloc(cmd_length + 1, sizeof(char*));
     if (argv == NULL) {
-        exit(1);
+        fprintf(stderr, "%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
     }
 
-    for (unsigned int i=0u; i < cmd_length; i++ ) {
-        argv[i] = scommand_front(cmd);
+    unsigned int i = 0;
+    while (!scommand_is_empty(cmd)) {
+        unsigned int length_com = strlen(scommand_front(cmd)) + 1;
+        argv[i] = malloc(length_com * sizeof(char));
+        if (argv[i] == NULL) {
+            fprintf(stderr, "%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
+        }
+        strcpy(argv[i], scommand_front(cmd));
         scommand_pop_front(cmd);
+        ++i;
     }
+
     argv[cmd_length] = NULL;
     return argv;
 }
 
+static void execute_command(scommand cmd) {
+    assert(cmd != NULL);
 
-/*
-  ¡Ver el tema de las redirección!
-  implementarlo aca-------|
-                          |
-                          |
-                          v
-static void execute_cmd(scommand cmd) {
+    unsigned int cmd_length = scommand_length(cmd);
+    char **argv = parse_cmd_to_exec(cmd, cmd_length);
 
+    handle_input_redirection(cmd);
+    handle_output_redirection(cmd);
+
+    if (execvp(argv[0], argv) == -1) {
+        fprintf(stderr, "%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    for (unsigned int i = 0; i < cmd_length; ++i) {
+        free(argv[i]);
+    }
+    free(argv);
 }
-*/
 
 void execute_pipeline(pipeline apipe) {
     assert(apipe != NULL);
 
-    //Caso en el que apipe es NULL
-    if (pipeline_is_empty(apipe)) {
-        exit(1);
-    }
+    if (pipeline_is_empty(apipe))
+        return;
 
-    //El pipeline tiene un solo comando simple
-    scommand cmd = NULL;
     if (builtin_alone(apipe)) {
-        cmd = pipeline_front(apipe);
-        if (builtin_is_internal(cmd)) {}
-            builtin_run(cmd);
-        }
-        exit(1);
+        builtin_run(pipeline_front(apipe));
+        return;
     }
     /*
      * Evito la creación de procesos zombies ignorando la señal que le envia el proceso hijo al padre cuando este termina.
      * Esto lo hago en caso de que el pipeline no deba esperar.
-     */
-     if (!pipeline_get_wait(apipe)) {
-         signal(SIGCHLD, SIG_IGN);
-     }
+    */
+    if (!pipeline_get_wait(apipe))
+        signal(SIGCHLD, SIG_IGN);
 
     //El pipeline tiene mas de un comando simple -> (conección de una o mas tuberias)
-    app_length = pipeline_length(apipe);
-    pid_t pid_childs = malloc(app_length * sizeof(pid_t)); //Reservo memoria para los PID's de los hijos del proceso
-
+    unsigned int app_length  = pipeline_length(apipe);
+    pid_t* pid_childs = malloc(app_length  * sizeof(pid_t));
+    
     int pipefd[2];
     int ptpm[2];
 
-    for (unsigned int i = 0u; i < app_length; i++) {
-
+    for (unsigned int i = 0; i < app_length ; ++i) {
         //Creo el canal de datos unidireccional para comunicar los procesos del pipeline
         if (i != 0) {
             // hay mas de un comando simple en el pipeline
-            pipefd[0] = ptmp[0]; //Extremo de lectura del pipe
-            pipefd[1] = ptmp[1]; //Extremo de escritura del pipe
+            ptpm[0] = pipefd[0]; //Extremo de lectura del pipe
+            ptpm[1] = pipefd[1]; //Extremo de escritura del pipe
         }
-        //Ahora, mientra no me encuentr en el extremo del pipeline, conceto la tuberia entre los comandos simples
-        if (i != app_length - 1) {
-            int res = pipe(pipefd);
+        //Ahora, mientras no me encuentre en el extremo del pipeline, conceto la tuberia entre los comandos simples
+        if (i != app_length  - 1) {
+            if(pipe(pipefd) == -1) {
+                exit(EXIT_FAILURE);
+            }
         }
-        if (res == -1) {
-           exit(EXIT_FAILURE);
-        }
+
         pid_t rc = fork();
 
         if (rc < 0) {
             //El fork() falló
-            fprintf(stderrm "ERROR: fork failed!\n");
-            exit(1);
+            fprintf(stderr, "%s\n", strerror(errno));
+            exit(EXIT_FAILURE);
         } else if (rc == 0) {
-            //Proceso hijo
-            /*
-             *COMPLETAR
-             */
-            char ** parse_cmd = parse_cmd_to_exec(cmd);
-            int execute = execvp(parse_cmd[0], parsed_cmd);
-            if (execute == -1) {
-                fprintf(stderr, "ERROR: %s\n", strerror(errno));
-                exit(EXIT_FAILURE);
+
+            if (i != app_length  - 1) {
+                close(pipefd[0]);
+                close(STDOUT_FILENO);
+                dup(pipefd[1]);
+                close(pipefd[1]);
             }
+
+            if (i != 0) {
+                close(ptpm[1]);
+                close(STDIN_FILENO);
+                dup(ptpm[0]);
+                close(ptpm[0]);
+            }
+
+            execute_command(pipeline_front(apipe));    
         } else {
-            /*
-             *COMPLETAR
-            */
-        }
-        /*En caso de que el pipeline tenga que esperar,
-         * se suspende la ejecución del proceso invocador hasta que un hijo,
-         * el cual se especifica con pid_child[i], haya cambiado de estado.
-         */
-        if (pipeline_get_wait(apipe)) {
-            for (unsigned int i=0; i < app_length; i++) {
-                waitpid(pid_child[i], NULL, 0);
+            if (i != 0) {
+                close(ptpm[0]);
+                close(ptpm[1]);
             }
+            pid_childs[i] = rc;
+            pipeline_pop_front(apipe);
         }
     }
+     /*En caso de que el pipeline tenga que esperar,
+         * se suspende la ejecución del proceso invocador hasta que un hijo,
+         * el cual se especifica con pid_child[i], haya cambiado de estado.
+    */
+    if (pipeline_get_wait(apipe)) {
+        for (unsigned int i = 0; i < app_length ; ++i)
+            waitpid(pid_childs[i], NULL, 0);
+    }
+    
     free(pid_childs);
 }

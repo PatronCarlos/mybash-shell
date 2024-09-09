@@ -11,14 +11,16 @@
 #include "strextra.h"
 
 char **parse_cmd_to_exec(scommand cmd) {
-    char *cmdstr = scommand_to_string(cmd);
+    char *cmdstr = NULL;
+    cmdstr = scommand_to_string(cmd);
     unsigned int cmd_length = strlen(cmdstr);
     free(cmdstr);
 
     char **argv = NULL;
-    argv = calloc(cmd_length + 2, sizeof(char));
+
+    argv = calloc(cmd_length + 1, sizeof(char *));
     if (argv == NULL) {
-        exit(1);
+        exit(EXIT_FAILURE);
     }
 
     for (unsigned int i=0u; i < cmd_length; i++ ) {
@@ -30,16 +32,33 @@ char **parse_cmd_to_exec(scommand cmd) {
 }
 
 
-/*
-  ¡Ver el tema de las redirección!
-  implementarlo aca-------|
-                          |
-                          |
-                          v
 static void execute_cmd(scommand cmd) {
+    char *parsed_cmd = parsed_cmd_to_exec(cmd);
 
+    char *redir_in = scommand_get_redir_in(cmd);
+    char *redir_out = scommand_get_redir_out(cmd);
+
+    if (redir_in) {
+        int fd_in = open(redir_in, O_RDONLY, S_IRUSR, S_IWUSR, S_IXUSR);
+        close(STDIN_FILENO);
+        dup2(fd_in, STDIN_FILENO);
+        close(fd_in);
+    }
+
+    if (redir_out) {
+        int fd_out = open(redir_out, O_CREAT|O_WRONLY, S_IRUSR, S_IWUSR, S_IXUSR);
+        close(STDOUT_FILENO);
+        dup2(fd_out, STDOUT_FILENO);
+        close(fd_out);
+    }
+
+    if (execvp(parsed_cmd[cmd], parse_cmd) == 1) {
+        fprintf(stderr, "ERROR: %s.\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    parse_cmd_to_exect(cmd);
 }
-*/
 
 void execute_pipeline(pipeline apipe) {
     assert(apipe != NULL);
@@ -69,7 +88,10 @@ void execute_pipeline(pipeline apipe) {
     //El pipeline tiene mas de un comando simple -> (conección de una o mas tuberias)
     app_length = pipeline_length(apipe);
     pid_t pid_childs = malloc(app_length * sizeof(pid_t)); //Reservo memoria para los PID's de los hijos del proceso
-
+    if (pid_childs == NULL) {
+        perror("ERROR: no se reservo memoria de manera correcta.\n");
+        exit(EXIT_FAILURE);
+    }
     int pipefd[2];
     int ptpm[2];
 
@@ -96,9 +118,19 @@ void execute_pipeline(pipeline apipe) {
             exit(1);
         } else if (rc == 0) {
             //Proceso hijo
-            /*
-             *COMPLETAR
-             */
+            if (i != app_length - 1) {
+            close(pipefd[0]); //cerramos el lado de lectura del pipe
+            close(STDOUT_FILENO); //Cierro y Redirecciono la salida estandar del archivo
+            dup(pipefd[1]);
+            }
+            // En caso de que el poceso ya no sea el hijo
+            if (rc != 0) {
+                close(ptmp[1]); // Cerramos el lado de escitura del pipe
+                close(STDIN_FILENO); // Cierro u redirecciono la entrada estandar del archivo
+                dup(ptmp[0]);
+                close(ptmp[0]);// Cerramos el lado de lectura del piepe
+            }
+
             char ** parse_cmd = parse_cmd_to_exec(cmd);
             int execute = execvp(parse_cmd[0], parsed_cmd);
             if (execute == -1) {
@@ -106,9 +138,13 @@ void execute_pipeline(pipeline apipe) {
                 exit(EXIT_FAILURE);
             }
         } else {
-            /*
-             *COMPLETAR
-            */
+            //Vuelvo al Proceso Padre - Cierro los descriptores de archivos
+            if (i != 0) {
+                close(ptmp[0]);
+                close(ptmp[1]);
+            }
+            pid_childs(i) = rc;
+            pipeline_pop_front(apipe);
         }
         /*En caso de que el pipeline tenga que esperar,
          * se suspende la ejecución del proceso invocador hasta que un hijo,

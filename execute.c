@@ -94,10 +94,14 @@ static void execute_command(scommand cmd) {
     handle_output_redirection(cmd);
 
     if (execvp(argv[0], argv) == -1) {
-        fprintf(stderr, "%s\n", strerror(errno));
+        if(errno == ENOENT) {
+            fprintf(stderr, "mybash : instruccion no encontrada.\n");
+        } else {
+            fprintf(stderr, "%s\n", strerror(errno));
+        }
         exit(EXIT_FAILURE);
     }
-
+    
     for (unsigned int i = 0; i < cmd_length; ++i) {
         free(argv[i]);
     }

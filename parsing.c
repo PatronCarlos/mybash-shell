@@ -51,8 +51,20 @@ pipeline parse_pipeline(Parser p) {
     while (!parser_at_eof(p)) {
         scommand cmd = parse_scommand(p);
         if (cmd == NULL) {
-            pipeline_destroy(pipe);
-            return NULL; 
+            bool garbage;
+        parser_garbage(p, &garbage);
+        if (garbage) {
+            char* garbage_str = parser_last_garbage(p);
+            if (garbage_str != NULL) {
+                printf("Basura encontrada: %s\n", garbage_str); 
+            }
+            pipeline_destroy(pipe); //Si se encuentra basura, puede ser un error, así que se destruye el pipe.
+            return NULL;
+        } else {
+            printf ("No hay comando\n");
+            pipeline_destroy(pipe); //Si se encuentra basura, puede ser un error, así que se destruye el pipe.
+            return NULL;
+        }
         }
         pipeline_push_back(pipe, cmd);
         parser_op_pipe(p, &is_pipe); //Esto verifica si hay un | en el comando, es decir si es una pipe.

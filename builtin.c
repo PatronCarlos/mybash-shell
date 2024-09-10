@@ -9,6 +9,7 @@
 #include "builtin.h"
 #include "command.h"
 #include "strextra.h"
+#include "execute.h"
 
 #define PATH_MAX 4096
 #define INTERNAL_COMMANDS_SIZE 4
@@ -78,6 +79,7 @@ void builtin_run(scommand cmd) {
     } else if (!strcmp(command, "help")) {
         print_help();
     } else if (!strcmp(command, "exit")) {
+        terminate_bg_ps();
         close(STDIN_FILENO); // Mybash.c saldrá del bucle cuando el parser encuentre EOF
         exit(EXIT_SUCCESS); //To Do: Una vez creada bg, modificar esta función.
     } else if (!strcmp(command, "pwd")) {

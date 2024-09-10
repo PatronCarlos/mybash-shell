@@ -13,6 +13,25 @@
 #include "execute.h"
 #include "builtin.h"
 
+#define MAX_BACKGROUND_PROCESSES 100 // Arbitrariamente
+pid_t background_pids[MAX_BACKGROUND_PROCESSES];
+int n_bg_pids = 0;
+
+static void add_bg_pid(pid_t pid) {
+    if (n_bg_pids < MAX_BACKGROUND_PROCESSES) {
+        background_pids[n_bg_pids++] = pid;
+    }
+}
+
+void terminate_bg_ps() {
+    for (int i = 0; i < n_bg_pids; i++) {
+        if (kill(background_pids[i], SIGTERM) == 0) {
+            waitpid(background_pids[i], NULL, 0);
+        }
+    }
+    n_bg_pids = 0;
+}
+
 static void handle_input_redirection(scommand cmd) {
     char* filename_in = scommand_get_redir_in(cmd);
     if (filename_in) {
@@ -99,8 +118,9 @@ void execute_pipeline(pipeline apipe) {
      * Evito la creación de procesos zombies ignorando la señal que le envia el proceso hijo al padre cuando este termina.
      * Esto lo hago en caso de que el pipeline no deba esperar.
     */
-    if (!pipeline_get_wait(apipe))
+    if (!pipeline_get_wait(apipe)) {
         signal(SIGCHLD, SIG_IGN);
+    }
 
     //El pipeline tiene mas de un comando simple -> (conección de una o mas tuberias)
     unsigned int app_length  = pipeline_length(apipe);
@@ -125,6 +145,10 @@ void execute_pipeline(pipeline apipe) {
 
         pid_t rc = fork();
 
+        if (!pipeline_get_wait(apipe)) {
+            add_bg_pid(rc);
+        }
+    
         if (rc < 0) {
             //El fork() falló
             fprintf(stderr, "%s\n", strerror(errno));

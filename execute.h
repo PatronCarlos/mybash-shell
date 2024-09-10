@@ -17,4 +17,10 @@ void execute_pipeline(pipeline apipe);
  * Requires: apipe!=NULL
  */
 
+void terminate_bg_ps(void);
+/*
+ * Termina con SIGTERM todos los procesos que han sido abiertos en segundo plano con &
+ * 
+*/
+
 #endif /* EXECUTE_H */

@@ -1,8 +1,9 @@
 # Sistemas Operativos 2024 - Laboratorio 1: MyBash
 
+🇬🇧 English version: [README.md](README.md)
+
 # MyBash Shell
 
-🇪🇸 Spanish version: [README_ES.md](README_ES.md)
 
 ## Introducción
 Este proyecto tiene como objetivo la implementación de un intérprete de línea de comandos, `mybash`, inspirado en `bash`, pudiendo asi ejecutar en el mismo algunos comandos basicos. A través de este laboratorio, se busca que los estudiantes comprendan y apliquen los mecanismos de concurrencia y comunicación en UNIX, además de seguir buenas prácticas de programación.

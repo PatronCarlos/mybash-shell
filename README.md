@@ -1,5 +1,7 @@
 # MyBash Shell
 
+🇪🇸 Spanish version: [README_ES.md](README_ES.md)
+
 MyBash is a UNIX-like command-line interpreter implemented in C as part of the Operating Systems course at FaMAF (UNC).
 
 The project provides core shell functionality including command execution, process management, input/output redirection, pipelines and built-in commands. Its implementation focuses on understanding UNIX process creation, inter-process communication and operating system fundamentals while following modular design and software engineering best practices.
